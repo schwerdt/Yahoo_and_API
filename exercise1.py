@@ -1,6 +1,7 @@
 import urllib
 import sys
 import csv
+import datetime
 
 #The base url for yahoo finance to get stock prices is stored as a global
 #Update it here if it ever changes
@@ -14,9 +15,9 @@ def compute_stock_data():
    end_date = input("Ending date (YYYY-MM-DD): ")
  
    #Check date range (make sure end date is after begin date)
-   if convert_date_to_int(begin_date) > convert_date_to_int(end_date):
-     print "Your ending date was before your beginning date."
-     sys.exit()
+   if not check_date_range(begin_date,end_date):
+       print "Your ending date was before your beginning date."
+       sys.exit()
 
    #Try to download the file for this ticker symbol
    data_file = retrieve_stock_data_file(ticker_symbol,begin_date,end_date)
@@ -30,15 +31,14 @@ def compute_stock_data():
    for row in data_table:
      print row['Date'], row['Volume']
    
-
-
     
 
 
 
 
 
-
+#Build the url needed to get the csv file.  This requires converting parameters 
+#from the date range and from the ticker symbol into the url string.
 def retrieve_stock_data_file(ticker_symbol,begin_date,end_date):
     #Get the day,month, year for the begin and end date
     begin_date = begin_date.split('-')
@@ -68,7 +68,7 @@ def retrieve_stock_data_file(ticker_symbol,begin_date,end_date):
     stock_url = stock_url + '&a=' + begin_month + '&b=' + begin_day + '&c=' + begin_year
     stock_url = stock_url + '&d=' + end_month + '&e=' + end_day + '&f=' + end_year
 
-    #Averaged weekley (g = w)
+    #Averaged weekly (g = w)
     stock_url = stock_url + '&g=w'
 
     #Get the .csv file
@@ -77,7 +77,7 @@ def retrieve_stock_data_file(ticker_symbol,begin_date,end_date):
 
     print stock_url
 
-    #Try to download it.  Since we don't know if the user gave us a valid 
+    #Try to download it (*try* because we don't know if the user gave us a valid ticker symbol.)
     urllib.urlretrieve(stock_url,stock_filename)
  
     #We don't know if the user gave us a valid ticker symbol, so we need to
@@ -96,58 +96,13 @@ def retrieve_stock_data_file(ticker_symbol,begin_date,end_date):
     
 
 
-def convert_date_to_int(date_string):
-    date_string = date_string.split('-')
-    #The reference date will be January 1, 1900.  Dates before this will be negative.  
-    year = int(date_string[0])
-    month = int(date_string[1])
-    date = int(date_string[2])
+def check_date_range(begin_date,end_date):
+    begin_date = begin_date.split('-')
+    end_date = end_date.split('-')
+
+    begin_date = datetime.date(int(begin_date[0]),int(begin_date[1]),int(begin_date[2]))
+    end_date = datetime.date(int(end_date[0]),int(end_date[1]),int(end_date[2]))
+
+    #Returns true if the beginning date is earlier than the ending date
+    return begin_date < end_date
  
-    num_years = year - 1900
-
-    if num_years >= 0:
-       num_leapyears = sum([isLeapYear(this_year) for this_year in range(1900,year)]) #[1900,year)
-    else:
-       num_leapyears = -1*sum([isLeapYear(this_year) for this_year in range(year,1900)]) #[1900,year)
-
-    year_offset = num_years*365 + num_leapyears
-    
-    #Month offset
-    month_offset = 0
-    for mo in range(month-1):
-        if (mo+1) == 1 or (mo+1) == 3 or (mo+1) ==5 or (mo+1) == 7 or (mo+1) == 8 or (mo+1) == 10 or (mo+1) ==12:
-            month_offset += 31
-        elif (mo+1) == 4 or (mo+1) == 6 or (mo+1) == 9 or (mo+1) == 11:
-            month_offset += 30
-        elif (mo+1) == 2:
-            if isLeapYear(year):
-                month_offset += 29
-            else:
-                month_offset += 28
-        else:
-           print("There is a problem with the month.")
-           sys.exit()
-
-    return year_offset + month_offset + date + -1
-         
-
-    
-#Return a logical: True if the tested year is a leap year; False if it is not.
-def isLeapYear(year):
-  #The year is a leap year if it can be divided by 4 but not 100.  The exception to this rule 
-  #occurs when the number can be divided by 400.  
-  if year%400 == 0:
-    leapyear = True
-  elif year%100 == 0:
-    leapyear = False
-  elif year%4 == 0:
-    leapyear = True
-  else:
-    leapyear = False
-
-  return leapyear
-
-
-
-
-
